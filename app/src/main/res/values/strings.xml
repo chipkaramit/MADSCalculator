@@ -1,6 +1,9 @@
 <resources>
     <string name="app_name">MADS Calculator</string>
+    <string name="activity_history">History</string>
     <string name="hint_username">User Name</string>
     <string name="hint_password">Password</string>
     <string name="btn_login">Login</string>
+    <string name="menu_history">History</string>
+    <string name="no_data">No History Data</string>
 </resources>

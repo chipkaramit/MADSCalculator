@@ -1,99 +1,35 @@
 package com.amit.madscalculator;
 
+import android.content.Context;
+import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.text.TextUtils;
+import android.util.Log;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
-import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.google.gson.Gson;
+
 import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.Arrays;
+import java.util.List;
 
 public class MainActivity extends AppCompatActivity implements View.OnClickListener {
-    public static final String REGEXOPERATORS = "[/+,-,/*,//,-]";
-    public static final String REGEXDIGITS = "(\\d+)";
-    public static Character[] OPERATORS = {'*', '+', '/', '-'};
-    public static ArrayList<Character> operators = new ArrayList<Character>();
-    public static ArrayList<Integer> digits = new ArrayList<Integer>();
-    TextView tvResults;
+
+    public ArrayList<HistoryData> historyDataList;
     EditText etDisplay;
     Button btnOne, btnTwo, btnThree, btnFour, btnFive, btnSix, btnSeven, btnEight, btnNine, btnZero,
             btnAddition, btnSubtraction, btnMultiplication, btnDivision, btnResults, btnClear;
-
-    public static void getDigits(String math) {
-
-        Pattern r = Pattern.compile(REGEXDIGITS);
-        Matcher m = r.matcher(math);
-        while (m.find()) {
-            int t = Integer.parseInt(math.substring(m.start(), m.end()));
-            digits.add(t);
-        }
-    }
-
-    public static void getOperators(String math) {
-        Pattern r = Pattern.compile(REGEXOPERATORS);
-        Matcher m = r.matcher(math);
-        while (m.find()) {
-            operators.add(math.charAt(m.start()));
-        }
-
-    }
-
-    private static void getNextOperator(ArrayList<Character> operators) {
-        for (Character op : OPERATORS) {
-            //Multiplication
-            for (int i = 0; i < operators.size(); i++) {
-
-                if (operators.get(i) == '*') {
-                    operators.remove(i);
-                    digits.set(i, (digits.get(i) * digits.get(i + 1)));
-                    digits.remove(i + 1);
-                    i -= 1;
-                }
-            }
-
-            //addition
-            for (int i = 0; i < operators.size(); i++) {
-
-                if (operators.get(i) == '+') {
-                    operators.remove(i);
-                    digits.set(i, (digits.get(i) + digits.get(i + 1)));
-                    digits.remove(i + 1);
-                    i -= 1;
-                }
-            }
-            //Division
-            for (int i = 0; i < operators.size(); i++) {
-
-                if (operators.get(i) == '/') {
-                    operators.remove(i);
-                    digits.set(i, (digits.get(i) / digits.get(i + 1)));
-                    digits.remove(i + 1);
-                    i -= 1;
-                }
-            }
-
-            //subtraction
-
-            for (int i = 0; i < operators.size(); i++) {
-
-                if (operators.get(i) == '-') {
-                    operators.remove(i);
-                    digits.set(i, (digits.get(i) - digits.get(i + 1)));
-                    digits.remove(i + 1);
-                    i -= 1;
-                }
-            }
-
-
-        }
-
-    }
+    SharedPreferences sharedPreferences;
+    String strFinal, strResult;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -103,8 +39,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     private void initViews() {
+        sharedPreferences = getSharedPreferences("SHAREDPREFERENCES", Context.MODE_PRIVATE);
+
+        historyDataList = new ArrayList<>();
         etDisplay = findViewById(R.id.et_display);
-        tvResults = findViewById(R.id.tv_display_result);
 
         btnOne = findViewById(R.id.button_one);
         btnOne.setOnClickListener(this);
@@ -211,18 +149,27 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 etDisplay.setText("");
                 break;
             case R.id.button_results:
-                madsCalculations();
+                if (!TextUtils.isEmpty(etDisplay.getText())) {
+
+                    if (!isLastNumber()) {
+                        madsCalculations();
+                    } else {
+                        Toast.makeText(getApplicationContext(), "invalid input", Toast.LENGTH_SHORT).show();
+                    }
+                }
                 break;
             default:
                 break;
         }
     }
 
+
     private boolean checkOperator() {
         String last = etDisplay.getText().toString();
         last = last.substring(last.length() - 1);
         return !last.equalsIgnoreCase("+") && !last.equalsIgnoreCase("-") && !last.equalsIgnoreCase("*") && !last.equalsIgnoreCase("/");
     }
+
     private boolean isLastNumber() {
         String last = etDisplay.getText().toString();
         last = last.substring(last.length() - 1);
@@ -231,22 +178,139 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 && !last.equalsIgnoreCase("8") && !last.equalsIgnoreCase("9");
     }
 
+
     private void madsCalculations() {
-        String strFinal = etDisplay.getText().toString();
-        getDigits(strFinal);
-        getOperators(strFinal);
-        getNextOperator(operators);
+        strFinal = etDisplay.getText().toString().trim();
 
-        for (Integer digit : digits) {
-            System.out.print(String.valueOf(digit) + ' ');
+        String[] operator = new String[]{"*", "+", "/", "-"};
+        List<String> operatorlist = Arrays.asList(operator);
+        List<String> myList = new ArrayList<String>();
+
+        int operatorCount = 0;
+        int nextCounter = 0;
+        for (int i = 0; i < strFinal.length(); i++) {
+            String strOperator = "" + strFinal.charAt(i);
+
+            if (operatorlist.contains(strOperator)) {
+                String leftString = strFinal.substring(nextCounter, i);
+
+                myList.add(leftString);
+                myList.add(strOperator);
+                operatorCount++;
+                Log.d("found_operator", leftString + "," + strOperator);
+                nextCounter = i + 1;
+
+            }
         }
 
-        System.out.println();
-
-        for (Character operator : operators) {
-            System.out.print(operator);
+        String temp = "";
+        for (int i = 0; i < myList.size(); i++) {
+            temp = temp + myList.get(i);
         }
 
+
+        if (temp.length() == strFinal.length())
+        {
+            if (operatorlist.contains(myList.get(myList.size() - 1))) {
+                myList.remove(myList.size() - 1);
+                operatorCount--;
+            }
+        } else {
+            String leftString = strFinal.substring(nextCounter);
+            myList.add(leftString);
+        }
+
+        processArray(myList, operatorlist, operatorCount);
+
+    }
+
+    void processArray(List<String> myList, List<String> operatorlist, int processCount) {
+        for (int k = 0; k < operatorlist.size(); k++) {
+            String forOperator = operatorlist.get(k);
+
+            for (int j = 0; j < processCount; j++) {
+                for (int i = 0; i < myList.size(); i++) {
+                    if (operatorlist.contains(myList.get(i)) && forOperator.equals(myList.get(i))) {
+                        if (i != 0 && i != myList.size() - 1) {
+                            double d = performOperationWithOperator(myList.get(i - 1), myList.get(i), myList.get(i + 1));
+                            String s = String.valueOf(d);
+                            myList.set(i + 1, s);
+                            myList.remove(i);
+                            myList.remove(i - 1);
+                        }
+                        break;
+                    }
+                }
+            }
+
+        }
+
+        Log.d("found_operator", "," + myList.get(0));
+
+        double d = Double.parseDouble(myList.get(0));
+        if (d == (long) d) {
+            strResult = String.format("%d", (long) d);
+        } else {
+            strResult = String.format("%s", d);
+        }
+        etDisplay.setText(strResult);
+
+        if (historyDataList.size() < 10) {
+            HistoryData historyData = new HistoryData();
+            historyData.setOperation(strFinal);
+            historyData.setResults(strResult);
+            historyDataList.add(historyData);
+        }
+        Log.d("Results", historyDataList.toString());
+    }
+
+    double performOperationWithOperator(String opLeft, String op, String opRight) {
+        try {
+
+
+            double l = Double.parseDouble(opLeft);
+            double r = Double.parseDouble(opRight);
+
+            switch (op) {
+                case "*":
+                    return (l * r);
+                case "+":
+                    return (l + r);
+                case "/":
+                    return (l / r);
+                case "-":
+                    return (l - r);
+                default:
+                    return 0;
+            }
+
+
+        } catch (Exception e) {
+
+        }
+        return 0;
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        MenuInflater inflater = getMenuInflater();
+        inflater.inflate(R.menu.main_menu, menu);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        switch (item.getItemId()) {
+            // action with ID action_refresh was selected
+            case R.id.action_history:
+                Intent intent = new Intent(MainActivity.this, HistoryActivity.class);
+                intent.putExtra("history_data_list", new Gson().toJson(historyDataList));
+                startActivity(intent);
+                break;
+            default:
+                break;
+        }
+        return true;
     }
 
 }
